@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>兑换计算器</title>
+<style>
+  :root{
+    --bg1:#efeae3;
+    --card:#ffffff;
+    --muted:#6b6f74;
+    --accent:#b88646;
+    --accent-strong:#9a6f3a;
+    --shadow: 0 8px 30px rgba(19,18,17,0.08);
+    --green:#2f8f6e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,var(--bg1), #f6f3ee);
+    -webkit-font-smoothing:antialiased; color:#1b1b1b;
+    display:flex; align-items:center; justify-content:center; padding:36px;
+    min-height:100vh;
+  }
+
+  .wrap{width:100%;max-width:980px;display:flex;gap:28px;align-items:center;justify-content:center}
+  .card{
+    background:var(--card); border-radius:14px; padding:26px; box-shadow:var(--shadow); width:720px;
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .card:hover{transform:translateY(-4px)}
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .title-block{flex:1}
+  h1{margin:0;font-size:20px;letter-spacing:0.2px;font-weight:600;color:#222}
+  .lang-row{display:flex;align-items:center;gap:8px}
+  .flag-btn{border:0;background:transparent;padding:6px;border-radius:8px;font-size:14px;cursor:pointer;transition:transform .15s, box-shadow .15s}
+  .flag-btn:hover{transform:translateY(-3px); box-shadow:0 6px 18px rgba(154,111,58,0.12)}
+  .flag-btn.active{box-shadow:inset 0 -2px 0 rgba(154,111,58,0.12); border-radius:8px}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e6e2dc;background:transparent;font-size:15px;color:#111}
+  input:focus{outline:none;box-shadow:0 6px 18px rgba(154,111,58,0.08);border-color:rgba(154,111,58,0.18)}
+  .full{grid-column:1 / -1}
+  .direction{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .pill{padding:8px 12px;border-radius:999px;border:1px solid #eee;background:linear-gradient(180deg,#fff,#fbfaf8);cursor:pointer;font-weight:600;color:#333}
+  .pill.active{background:linear-gradient(180deg,#fff8f1,#fff2e6);border:1px solid rgba(154,111,58,0.18);box-shadow:0 6px 18px rgba(154,111,58,0.06)}
+  .result-card{margin-top:18px;background:linear-gradient(180deg,#fff,#fff);border-radius:12px;padding:16px;border:1px solid #f0ebe6}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:10px 4px}
+  .label{color:var(--muted);font-size:13px}
+  .value{font-size:18px;font-weight:700;color:#111}
+  .value.editable{cursor:text;padding:6px 10px;border-radius:8px;min-width:140px;text-align:right}
+  .value.editable:focus{outline:none;box-shadow:0 6px 18px rgba(154,111,58,0.06)}
+  .small{font-size:12px;color:var(--muted);margin-top:6px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px; white-space:pre-line}
+  .muted-block{font-size:13px;color:var(--muted);margin-top:8px}
+  .right-col{flex:1}
+  .hint{font-size:12px;color:#8b8f94}
+  .footer{margin-top:14px;font-size:12px;color:var(--muted);text-align:center;display:none}
+
+  /* 输入框样式 */
+  .input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+  .input-wrapper input {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #e6e2dc;
+    background: transparent;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111;
+    text-align: right;
+  }
+  .input-wrapper input:focus {
+    outline: none;
+    box-shadow: 0 6px 18px rgba(154,111,58,0.08);
+    border-color: rgba(154,111,58,0.18);
+  }
+  .currency-symbol {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    font-weight: 700;
+    color: #111;
+    pointer-events: none;
+    background: white;
+    padding-left: 4px;
+  }
+
+  /* 汇率输入框样式 */
+  .rate-container {
+    position: relative;
+    width: 90%; /* 缩短宽度 */
+  }
+  .inverse-rate {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: #8b8f94; /* 浅灰色 */
+    background: white;
+    padding-left: 4px;
+    pointer-events: none;
+  }
+  .rate-input {
+    padding-right: 60px !important; /* 调整右边距 */
+  }
+
+  /* 响应式设计 */
+  @media (max-width:860px){
+    .wrap{flex-direction:column;align-items:stretch}
+    .card{width:100%}
+    .controls{grid-template-columns:1fr}
+    .rate-container {width: 100%;} /* 在小屏幕上恢复全宽 */
+  }
+  
+  @media (max-width: 600px) {
+    .input-wrapper input {
+      font-size: 16px;
+      padding: 8px 36px 8px 10px;
+    }
+    .currency-symbol {
+      font-size: 16px;
+      right: 10px;
+    }
+    body {
+      padding: 20px;
+    }
+    .card {
+      padding: 20px;
+    }
+    .inverse-rate {
+      right: 5px;
+      font-size: 11px;
+    }
+    .rate-input {
+      padding-right: 50px !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="application" aria-label="Currency calculator">
+      <header>
+        <div class="title-block">
+          <h1 id="title">兑换计算器</h1>
+        </div>
+
+        <div class="lang-row" aria-hidden="false">
+          <div style="text-align:right">
+            <button class="flag-btn" id="flag-ru" title="Русский (RU)">RU</button>
+            <button class="flag-btn active" id="flag-cn" title="中文 (CN)">CN</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="controls" style="margin-top:6px">
+        <!-- 兑换方向 -->
+        <div class="full">
+          <label id="lbl-direction">方向</label>
+          <div class="direction" role="radiogroup" aria-labelledby="lbl-direction">
+            <button class="pill active" id="dir-rub2cny" data-dir="rub2cny" aria-pressed="true">₽ ⇒ ¥</button>
+            <button class="pill" id="dir-cny2rub" data-dir="cny2rub" aria-pressed="false">¥ ⇒ ₽</button>
+            <button class="pill" id="dir-rub2usd" data-dir="rub2usd" aria-pressed="false">₽ ⇒ $</button>
+            <button class="pill" id="dir-usd2rub" data-dir="usd2rub" aria-pressed="false">$ ⇒ ₽</button>
+          </div>
+        </div>
+
+        <!-- 汇率输入框 -->
+        <div class="rate-container">
+          <label id="lbl-your-rate">今日汇率</label>
+          <input id="myRate" class="rate-input" inputmode="decimal" placeholder="" />
+          <div class="inverse-rate" id="inverseMyRate"></div>
+        </div>
+
+        <div class="rate-container">
+          <label id="lbl-client-rate">客户汇率</label>
+          <input id="clientRate" class="rate-input" inputmode="decimal" placeholder="" />
+          <div class="inverse-rate" id="inverseClientRate"></div>
+        </div>
+      </div>
+
+      <div class="result-card" id="results">
+        <div class="row" style="align-items:flex-start">
+          <!-- 客户给我 -->
+          <div>
+            <div class="label" id="lab-client-give-label">客户给我</div>
+            <div class="input-wrapper">
+              <input type="text" id="clientGive" inputmode="decimal" />
+              <span class="currency-symbol" id="giveCurrency">₽</span>
+            </div>
+          </div>
+
+          <!-- 我给客户 -->
+          <div style="text-align:right">
+            <div class="label" id="lab-client-get">我给客户</div>
+            <div class="input-wrapper">
+              <input type="text" id="clientGet" inputmode="decimal" />
+              <span class="currency-symbol" id="getCurrency">¥</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="border-top:1px dashed #f0ebe6;margin-top:8px;padding-top:12px">
+          <div>
+            <div class="label" id="lab-profit-rub">您的利润 (₽)</div>
+            <div class="value" id="profitRub">—</div>
+          </div>
+          <div style="text-align:right">
+            <div class="label" id="lab-profit-cny">您的利润 (¥)</div>
+            <div class="value" id="profitCny">—</div>
+          </div>
+        </div>
+
+        <div class="note" id="detailLine">输入数据计算</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ====== 工具函数 ====== */
+function cleanNum(s){
+  if (s === null || s === undefined) return NaN;
+  s = String(s).trim();
+  if (s === "") return NaN;
+  s = s.replace(/\s+/g,'').replace(/,/g,'.').replace(/[^\d.\-]/g,'');
+  const n = Number(s);
+  return isFinite(n) ? n : NaN;
+}
+function fmt(n, dec=2, forceDecimals=false){
+  if (!isFinite(n)) return '—';
+  if (direction === 'cny2rub' && dec === 2 && Number.isInteger(n) && !forceDecimals) {
+    return n.toLocaleString(undefined, {maximumFractionDigits: 0});
+  }
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: forceDecimals ? dec : 0,
+    maximumFractionDigits: dec
+  });
+}
+function escHTML(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, s=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+/* ====== 获取DOM元素 ====== */
+const el = id => document.getElementById(id);
+const myRateEl = el('myRate');
+const clientRateEl = el('clientRate');
+const dirRubBtn = el('dir-rub2cny');
+const dirCnyBtn = el('dir-cny2rub');
+const dirRubUsdBtn = el('dir-rub2usd');
+const dirUsdRubBtn = el('dir-usd2rub');
+const clientGetEl = el('clientGet');
+const clientGiveEl = el('clientGive');
+const profitRubEl = el('profitRub');
+const profitCnyEl = el('profitCny');
+const detailLine = el('detailLine');
+const flagRu = el('flag-ru');
+const flagCn = el('flag-cn');
+const titleEl = el('title');
+const labClientGet = el('lab-client-get');
+const labClientGive = el('lab-client-give-label');
+const labDirection = el('lbl-direction');
+const labYourRate = el('lbl-your-rate');
+const labClientRate = el('lbl-client-rate');
+const labProfitRub = el('lab-profit-rub');
+const labProfitCny = el('lab-profit-cny');
+const giveCurrencyEl = el('giveCurrency');
+const getCurrencyEl = el('getCurrency');
+const inverseMyRateEl = el('inverseMyRate');
+const inverseClientRateEl = el('inverseClientRate');
+
+/* ====== 全局状态 ====== */
+let direction = 'rub2cny';
+let currentLang = 'cn';
+let lastEdited = null;
+let debounceTimer = null;
+
+/* ====== 多语言支持 ====== */
+const L = {
+  ru: {
+    title:'Калькулятор обмена',
+    clientGet:'Клиент получит',
+    clientGive:'Клиент отдаст',
+    direction: 'Направление',
+    yourRate: 'Ваш курс',
+    clientRate: 'Клиентский курс',
+    profitRub: 'Ваша прибыль (₽)',
+    profitCny: 'Ваша прибыль (¥)'
+  },
+  cn: {
+    title:'兑换计算器',
+    clientGet:'我给客户',
+    clientGive:'客户给我',
+    direction: '方向',
+    yourRate: '今日汇率',
+    clientRate: '客户汇率',
+    profitRub: '您的利润 (₽)',
+    profitCny: '您的利润 (¥)'
+  }
+};
+
+/* ====== 应用语言 ====== */
+function applyLang(lang){
+  currentLang = lang;
+  const t = L[lang];
+  titleEl.textContent = t.title;
+  labClientGet.textContent = t.clientGet;
+  labClientGive.textContent = t.clientGive;
+  labDirection.textContent = t.direction;
+  labYourRate.textContent = t.yourRate;
+  labClientRate.textContent = t.clientRate;
+  labProfitRub.textContent = t.profitRub;
+  labProfitCny.textContent = t.profitCny;
+  flagRu.classList.toggle('active', lang==='ru');
+  flagCn.classList.toggle('active', lang==='cn');
+}
+flagRu.addEventListener('click', ()=> applyLang('ru'));
+flagCn.addEventListener('click', ()=> applyLang('cn'));
+applyLang('cn');
+
+/* ====== 汇率转换函数 ====== */
+function toRubPerCny(rateInput){
+  const v = cleanNum(rateInput);
+  if (!isFinite(v) || v === 0) return NaN;
+  if (Math.abs(v) > 1) return v;
+  return 1 / v;
+}
+
+function toRubPerUsd(rateInput){
+  const v = cleanNum(rateInput);
+  if (!isFinite(v) || v === 0) return NaN;
+  if (Math.abs(v) > 1) return v;
+  return 1 / v;
+}
+
+/* ====== 更新反向汇率显示 ====== */
+function updateInverseRates() {
+  const myRate = cleanNum(myRateEl.value);
+  const clientRate = cleanNum(clientRateEl.value);
+  
+  // 更新"今日汇率"的反向显示
+  if (isFinite(myRate) && myRate !== 0) {
+    const inverseRate = 1 / myRate;
+    const decimals = myRate < 1 ? 3 : 4; // 根据值大小决定小数位数
+    inverseMyRateEl.textContent = fmt(inverseRate, decimals); // 只显示结果
+  } else {
+    inverseMyRateEl.textContent = '';
+  }
+  
+  // 更新"客户汇率"的反向显示
+  if (isFinite(clientRate) && clientRate !== 0) {
+    const inverseRate = 1 / clientRate;
+    const decimals = clientRate < 1 ? 3 : 4; // 根据值大小决定小数位数
+    inverseClientRateEl.textContent = fmt(inverseRate, decimals); // 只显示结果
+  } else {
+    inverseClientRateEl.textContent = '';
+  }
+}
+
+/* ====== 设置兑换方向 ====== */
+function setDirection(dir){
+  direction = dir;
+  dirRubBtn.classList.toggle('active', dir==='rub2cny');
+  dirCnyBtn.classList.toggle('active', dir==='cny2rub');
+  dirRubUsdBtn.classList.toggle('active', dir==='rub2usd');
+  dirUsdRubBtn.classList.toggle('active', dir==='usd2rub');
+  
+  dirRubBtn.setAttribute('aria-pressed', dir==='rub2cny');
+  dirCnyBtn.setAttribute('aria-pressed', dir==='cny2rub');
+  dirRubUsdBtn.setAttribute('aria-pressed', dir==='rub2usd');
+  dirUsdRubBtn.setAttribute('aria-pressed', dir==='usd2rub');
+  
+  // 更新货币符号显示
+  if (dir === 'rub2cny') {
+    giveCurrencyEl.textContent = '₽';
+    getCurrencyEl.textContent = '¥';
+    labProfitCny.textContent = L[currentLang].profitCny;
+  } else if (dir === 'cny2rub') {
+    giveCurrencyEl.textContent = '¥';
+    getCurrencyEl.textContent = '₽';
+    labProfitCny.textContent = L[currentLang].profitCny;
+  } else if (dir === 'rub2usd') {
+    giveCurrencyEl.textContent = '₽';
+    getCurrencyEl.textContent = '$';
+    labProfitCny.textContent = L[currentLang].profitCny.replace('¥', '$');
+  } else if (dir === 'usd2rub') {
+    giveCurrencyEl.textContent = '$';
+    getCurrencyEl.textContent = '₽';
+    labProfitCny.textContent = L[currentLang].profitCny.replace('¥', '$');
+  }
+  
+  scheduleRecalc('direction');
+}
+dirRubBtn.addEventListener('click', ()=> setDirection('rub2cny'));
+dirCnyBtn.addEventListener('click', ()=> setDirection('cny2rub'));
+dirRubUsdBtn.addEventListener('click', ()=> setDirection('rub2usd'));
+dirUsdRubBtn.addEventListener('click', ()=> setDirection('usd2rub'));
+
+/* ====== 主计算函数 ====== */
+function computeAll(){
+  const myRateIn = cleanNum(myRateEl.value);
+  const clientRateIn = cleanNum(clientRateEl.value);
+  
+  // 根据当前方向决定如何转换汇率
+  let myRate, clientRate;
+  if(direction === 'rub2cny' || direction === 'cny2rub') {
+    // 人民币兑换处理
+    myRate = toRubPerCny(myRateIn);
+    clientRate = toRubPerCny(clientRateIn);
+  } else {
+    // 美元兑换处理
+    myRate = toRubPerUsd(myRateIn);
+    clientRate = toRubPerUsd(clientRateIn);
+  }
+
+  // 更新反向汇率显示
+  updateInverseRates();
+
+  // 检查汇率是否有效
+  if (!isFinite(myRate) || !isFinite(clientRate) || myRate <= 0 || clientRate <= 0){
+    if (lastEdited !== 'clientGive') clientGiveEl.value = '';
+    if (lastEdited !== 'clientGet') clientGetEl.value = '';
+    profitRubEl.textContent = '—';
+    profitCnyEl.textContent = '—';
+    detailLine.textContent = currentLang === 'ru' ? 'Введите корректные курсы' : '请输入正确的汇率';
+    return;
+  }
+
+  // 获取当前输入值
+  const rawGive = cleanNum(clientGiveEl.value);
+  const rawGet  = cleanNum(clientGetEl.value);
+
+  let amountRub = NaN;
+  let amountCny = NaN;
+
+  // 如果用户编辑了"客户给我"字段
+  if (lastEdited === 'clientGive' || (isFinite(rawGive) && !isFinite(rawGet))){
+    if (isFinite(rawGive)){
+      if (direction === 'rub2cny' || direction === 'rub2usd'){
+        amountRub = rawGive;
+        amountCny = amountRub / clientRate;
+      } else {
+        amountCny = rawGive;
+        amountRub = amountCny * clientRate;
+      }
+    }
+  }
+  // 如果用户编辑了"我给客户"字段
+  else if (lastEdited === 'clientGet' || (isFinite(rawGet) && !isFinite(rawGive))){
+    if (isFinite(rawGet)){
+      if (direction === 'rub2cny' || direction === 'rub2usd'){
+        amountCny = rawGet;
+        amountRub = amountCny * clientRate;
+      } else {
+        amountRub = rawGet;
+        amountCny = amountRub / clientRate;
+      }
+    }
+  } else {
+    // 如果两个字段都填写了，优先使用"客户给我"
+    if (isFinite(rawGive)){
+      if (direction === 'rub2cny' || direction === 'rub2usd'){ 
+        amountRub = rawGive; 
+        amountCny = amountRub / clientRate; 
+      } else { 
+        amountCny = rawGive; 
+        amountRub = amountCny * clientRate; 
+      }
+    } else if (isFinite(rawGet)){
+      if (direction === 'rub2cny' || direction === 'rub2usd'){ 
+        amountCny = rawGet; 
+        amountRub = amountCny * clientRate; 
+      } else { 
+        amountRub = rawGet; 
+        amountCny = amountRub / clientRate; 
+      }
+    }
+  }
+
+  // 如果无法计算金额，则清空字段
+  if (!isFinite(amountRub) || !isFinite(amountCny)){
+    if (lastEdited !== 'clientGive') clientGiveEl.value = '';
+    if (lastEdited !== 'clientGet') clientGetEl.value = '';
+    profitRubEl.textContent = '—';
+    profitCnyEl.textContent = '—';
+    detailLine.textContent = currentLang === 'ru' ? 'Введите корректные значения' : '请输入正确的值';
+    return;
+  }
+
+  // 计算利润
+  let profitCny, profitRub;
+  if (direction === 'rub2cny' || direction === 'rub2usd'){
+    const myCnyBought = amountRub / myRate;
+    profitCny = myCnyBought - amountCny;
+    profitRub = profitCny * myRate;
+  } else {
+    const myRub = amountCny * myRate;
+    profitRub = myRub - amountRub;
+    profitCny = profitRub / myRate;
+  }
+
+  // 更新显示值
+  if (direction === 'rub2cny' || direction === 'rub2usd'){
+    if (lastEdited !== 'clientGive') clientGiveEl.value = fmt(amountRub,0);
+    if (lastEdited !== 'clientGet') clientGetEl.value = fmt(amountCny,2);
+  } else {
+    if (lastEdited !== 'clientGive') clientGiveEl.value = fmt(amountCny,2);
+    if (lastEdited !== 'clientGet') clientGetEl.value = fmt(amountRub,2);
+  }
+
+  // 更新利润显示 - 使用当前语言设置
+  profitRubEl.textContent = fmt(profitRub,2) + ' ₽';
+  if(direction.includes('cny')) {
+    profitCnyEl.textContent = fmt(profitCny,2) + ' ¥';
+    labProfitCny.textContent = L[currentLang].profitCny;
+  } else {
+    profitCnyEl.textContent = fmt(profitCny,2) + ' $';
+    labProfitCny.textContent = L[currentLang].profitCny.replace('¥', '$');
+  }
+  labProfitRub.textContent = L[currentLang].profitRub;
+
+  // 更新详情行 - 添加正确的换行符
+  const clientRateShown = clientRateEl.value ? escHTML(clientRateEl.value) : fmt(clientRate,2);
+  if (direction === 'rub2cny'){
+    detailLine.innerHTML =
+      currentLang === 'ru' ? 
+        `Здравствуйте, сегодняшний курс: ${clientRateShown}\n` +
+        `Сумма обмена: ${fmt(amountCny,2)} ¥.\n` +
+        `Сумма отправки: ${fmt(amountRub,0)} ₽.\n` +
+        `Реквизиты: +7 (912) 891-58-82` : 
+        `您好，今天的汇率: ${clientRateShown}\n` +
+        `付给客户金额: ${fmt(amountCny,2)} ¥.\n` +
+        `客户支付金额: ${fmt(amountRub,0)} ₽.\n` +
+        `联系方式: +7 (912) 891-58-82`;
+  } else if (direction === 'cny2rub') {
+    detailLine.innerHTML =
+      currentLang === 'ru' ? 
+        `Здравствуйте, сегодняшний курс: ${clientRateShown}\n` +
+        `Сумма обмена: ${fmt(amountRub,2)} ₽.\n` +
+        `Сумма отправки: ${fmt(amountCny,2)} ¥.\n` +
+        `Реквизиты: +7 (912) 891-58-82` :
+        `您好，今天的汇率: ${clientRateShown}\n` +
+        `付给客户金额: ${fmt(amountRub,2)} ₽.\n` +
+        `客户支付金额: ${fmt(amountCny,2)} ¥.\n` +
+        `联系方式: +7 (912) 891-58-82`;
+  } else if (direction === 'rub2usd') {
+    detailLine.innerHTML =
+      currentLang === 'ru' ? 
+        `Здравствуйте, сегодняшний курс: ${clientRateShown}\n` +
+        `Сумма обмена: ${fmt(amountCny,2)} $.\n` +
+        `Сумма отправки: ${fmt(amountRub,0)} ₽.\n` +
+        `Реквизиты: +7 (912) 891-58-82` : 
+        `您好，今天的汇率: ${clientRateShown}\n` +
+        `付给客户金额: ${fmt(amountCny,2)} $.\n` +
+        `客户支付金额: ${fmt(amountRub,0)} ₽.\n` +
+        `联系方式: +7 (912) 891-58-82`;
+  } else if (direction === 'usd2rub') {
+    detailLine.innerHTML =
+      currentLang === 'ru' ? 
+        `Здравствуйте, сегодняшний курс: ${clientRateShown}\n` +
+        `Сумма обмена: ${fmt(amountRub,2)} ₽.\n` +
+        `Сумма отправки: ${fmt(amountCny,2)} $.\n` +
+        `Реквизиты: +7 (912) 891-58-82` : 
+        `您好，今天的汇率: ${clientRateShown}\n` +
+        `付给客户金额: ${fmt(amountRub,2)} ₽.\n` +
+        `客户支付金额: ${fmt(amountCny,2)} $.\n` +
+        `联系方式: +7 (912) 891-58-82`;
+  }
+}
+
+/* ====== 防抖函数 ====== */
+function scheduleRecalc(source){
+  lastEdited = source;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(()=>{ computeAll(); lastEdited = null; }, 120);
+}
+
+/* ====== 事件监听 ====== */
+myRateEl.addEventListener('input', ()=> {
+  scheduleRecalc('myRate');
+  updateInverseRates();
+});
+clientRateEl.addEventListener('input', ()=> {
+  scheduleRecalc('clientRate');
+  updateInverseRates();
+});
+
+// 格式化输入
+clientGiveEl.addEventListener('input', ()=> {
+  const value = clientGiveEl.value.replace(/[^\d,.]/g, '');
+  clientGiveEl.value = value;
+  scheduleRecalc('clientGive');
+});
+
+clientGetEl.addEventListener('input', ()=> {
+  const value = clientGetEl.value.replace(/[^\d,.]/g, '');
+  clientGetEl.value = value;
+  scheduleRecalc('clientGet');
+});
+
+// 焦点处理
+[clientGetEl, clientGiveEl, myRateEl, clientRateEl].forEach(node=>{
+  node.addEventListener('focus', ()=>{
+    if (node === clientGetEl) lastEdited = 'clientGet';
+    else if (node === clientGiveEl) lastEdited = 'clientGive';
+    else if (node === myRateEl) lastEdited = 'myRate';
+    else if (node === clientRateEl) lastEdited = 'clientRate';
+  });
+});
+
+// 初始化
+myRateEl.value = '';
+clientRateEl.value = '';
+clientGiveEl.value = '';
+clientGetEl.value = '';
+profitRubEl.textContent = '—';
+profitCnyEl.textContent = '—';
+detailLine.textContent = '输入数据计算';
+
+// 设置初始方向
+setDirection(direction);
+</script>
+</body>
+</html>
